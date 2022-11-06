@@ -8,8 +8,8 @@ import {
 
 import { THEME } from './src/styles/theme'
 import { Loading } from './src/components/Loading'
-import { Pools } from './src/screens/Pools'
-// import { SignIn } from './src/screens/Signin'
+// import { Pools } from './src/screens/Pools'
+import { SignIn } from './src/screens/Signin'
 
 import { AuthContextProvider } from './src/contexts/AuthContext'
 
@@ -28,7 +28,7 @@ export default function App() {
           backgroundColor="transparent"
           translucent
         />
-        {fontsLoaded ? <Pools /> : <Loading />}
+        {fontsLoaded ? <SignIn /> : <Loading />}
       </AuthContextProvider>
     </NativeBaseProvider>
   )
