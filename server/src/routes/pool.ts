@@ -1,7 +1,9 @@
 import { FastifyInstance } from 'fastify'
 import ShortUniqueID from 'short-unique-id'
 import { z } from 'zod'
+
 import { prisma } from '../lib/prisma'
+import { authenticate } from '../plugins/authenticate'
 
 export async function poolRoutes(fastify: FastifyInstance){
   //Count pool
@@ -22,14 +24,77 @@ export async function poolRoutes(fastify: FastifyInstance){
     const generate = new ShortUniqueID({ length: 6 })
     const code = String(generate()).toUpperCase()
 
-    await prisma.pool.create({
-      data: {
-        title,
+    try {
+      await request.jwtVerify()
+
+      await prisma.pool.create({
+        data: {
+          title,
+          code,
+          ownerId: request.user.sub,
+
+          participants : {
+            create: {
+              userId: request.user.sub,
+            }
+          }
+        }
+      })
+    } catch {
+      await prisma.pool.create({
+        data: {
+          title,
+          code,
+        }
+      })
+    }
+
+    return reply.status(201).send({ code })
+  })
+
+  //Join pool
+  fastify.post('/pools/:id/join', {
+    onRequest:[authenticate]
+  }, async (request, reply) => {
+    const joinPoolBody = z.object({
+      code: z.string(),
+    })
+
+    const { code } = joinPoolBody.parse(request.body)
+
+    const pool = await prisma.pool.findUnique({
+      where: {
         code,
+      },
+      include: {
+        participants: {
+          where: {
+            userId: request.user.sub
+          }
+        }
       }
     })
 
-    return reply.status(201).send({ code })
+    if(!pool){
+      return reply.status(400).send({
+        message: 'Pool not found'
+      })
+    }
+
+    if(pool.participants.length > 0){
+      return reply.status(400).send({
+        message: 'You already joined this pool'
+      })
+    }
+
+    await prisma.participant.create({
+      data: {
+        poolId: pool.id,
+        userId: request.user.sub,
+      }
+    })
+
+    return reply.status(201).send()
   })
 }
 // http://127.0.0.1:3333/pools/count  http://localhost:3333/pools
